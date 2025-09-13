@@ -1,9 +1,14 @@
 ### MDP Value Iteration and Policy Iteration
 
+import sys
+
 import numpy as np
+
 from riverswim import RiverSwim
+from store import StoreKeeper
 
 np.set_printoptions(precision=3)
+
 
 def bellman_backup(state, action, R, T, gamma, V):
     """
@@ -25,10 +30,12 @@ def bellman_backup(state, action, R, T, gamma, V):
     backup_val = None
     ############################
     ### START CODE HERE ###
+    backup_val = R[state, action] + gamma * np.dot(T[state, action], V)
     ### END CODE HERE ###
     ############################
 
     return backup_val
+
 
 def policy_evaluation(policy, R, T, gamma, tol=1e-3):
     """
@@ -50,6 +57,18 @@ def policy_evaluation(policy, R, T, gamma, tol=1e-3):
 
     ############################
     ### START CODE HERE ###
+    value_function = np.zeros(num_states)
+
+    while True:
+        V_next = np.zeros(num_states)
+        for state in range(num_states):
+            action = int(policy[state])
+            V_next[state] = bellman_backup(state, action, R, T, gamma, value_function)
+        max_diff = np.max(np.abs(value_function - V_next))
+        value_function = V_next
+
+        if max_diff < tol:
+            break
     ### END CODE HERE ###
     ############################
     return value_function
@@ -74,6 +93,15 @@ def policy_improvement(R, T, V_policy, gamma):
 
     ############################
     ### START CODE HERE ###
+    policy = np.zeros(num_states, dtype=int)
+
+    for state in range(num_states):
+        Q = np.zeros(num_actions)
+        for action in range(num_actions):
+            Q[action] = bellman_backup(state, action, R, T, gamma, V_policy)
+        policy[state] = np.argmax(Q)
+
+    new_policy = policy
     ### END CODE HERE ###
     ############################
     return new_policy
@@ -94,11 +122,19 @@ def policy_iteration(R, T, gamma, tol=1e-3):
     V_policy: np.array (num_states)
     policy: np.array (num_states)
     """
-    num_states, _ = R.shape
+    num_states, num_actions = R.shape
     V_policy = None
     policy = None
     ############################
     ### START CODE HERE ###
+    policy = np.random.choice(num_actions, size=num_states)
+
+    while True:
+        V_policy = policy_evaluation(policy, R, T, gamma, tol)
+        new_policy = policy_improvement(R, T, V_policy, gamma)
+        if np.array_equal(policy, new_policy):
+            break
+        policy = new_policy
     ### END CODE HERE ###
     ############################
     return V_policy, policy
@@ -121,6 +157,24 @@ def value_iteration(R, T, gamma, tol=1e-3):
     policy = None
     ############################
     ### START CODE HERE ###
+    value_function = np.zeros(num_states)
+
+    while True:
+        V_next = np.zeros(num_states)
+
+        for state in range(num_states):
+            Q = np.zeros(num_actions)
+            for action in range(num_actions):
+                Q[action] = bellman_backup(state, action, R, T, gamma, value_function)
+            V_next[state] = np.max(Q)
+
+        max_diff = np.max(np.abs(value_function - V_next))
+        value_function = V_next
+
+        if max_diff < tol:
+            break
+
+    policy = policy_improvement(R, T, value_function, gamma)
     ### END CODE HERE ###
     ############################
     return value_function, policy
@@ -131,21 +185,21 @@ def value_iteration(R, T, gamma, tol=1e-3):
 if __name__ == "__main__":
     SEED = 1234
 
-    RIVER_CURRENT = 'WEAK'
-    assert RIVER_CURRENT in ['WEAK', 'MEDIUM', 'STRONG']
+    RIVER_CURRENT = "WEAK"
+    assert RIVER_CURRENT in ["WEAK", "MEDIUM", "STRONG"]
     env = RiverSwim(RIVER_CURRENT, SEED)
 
     R, T = env.get_model()
-    discount_factor = 0.99
+    discount_factor = float(sys.argv[1]) if len(sys.argv) > 1 else 0.99
 
     print("\n" + "-" * 25 + "\nBeginning Policy Iteration\n" + "-" * 25)
 
     V_pi, policy_pi = policy_iteration(R, T, gamma=discount_factor, tol=1e-3)
     print(V_pi)
-    print([['L', 'R'][a] for a in policy_pi])
+    print([["L", "R"][a] for a in policy_pi])
 
     print("\n" + "-" * 25 + "\nBeginning Value Iteration\n" + "-" * 25)
 
     V_vi, policy_vi = value_iteration(R, T, gamma=discount_factor, tol=1e-3)
     print(V_vi)
-    print([['L', 'R'][a] for a in policy_vi])
+    print([["L", "R"][a] for a in policy_vi])
