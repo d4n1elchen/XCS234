@@ -1,0 +1,4 @@
+src/results/**/*
+!src/results/**/
+!src/results/**/scores.*
+!src/results/**/log.txt

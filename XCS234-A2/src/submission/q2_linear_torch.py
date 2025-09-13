@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from utils.test_env import EnvTest
-from utils.general import join
-from core.deep_q_learning_torch import DQN
-from .q1_schedule import LinearExploration, LinearSchedule
-
 import yaml
+
+from core.deep_q_learning_torch import DQN
+from utils.general import join
+from utils.test_env import EnvTest
+
+from .q1_schedule import LinearExploration, LinearSchedule
 
 yaml.add_constructor("!join", join)
 
@@ -54,6 +54,14 @@ class Linear(DQN):
         img_height, img_width, n_channels = state_shape
         num_actions = self.env.action_space.n
         ### START CODE HERE ###
+        input_size = (
+            img_height
+            * img_width
+            * n_channels
+            * self.config["hyper_params"]["state_history"]
+        )
+        self.q_network = nn.Linear(input_size, num_actions)
+        self.target_network = nn.Linear(input_size, num_actions)
         ### END CODE HERE ###
 
     ############################################################
@@ -79,12 +87,18 @@ class Linear(DQN):
 
         Hints:
             (1) Look up torch.flatten (https://pytorch.org/docs/stable/generated/torch.flatten.html)
-            (2) Pay attention to the torch.flatten `start_dim` Parameter 
+            (2) Pay attention to the torch.flatten `start_dim` Parameter
             (3) You can forward a tensor through a network by simply calling it (i.e. network(tensor))
         """
         out = None
 
         ### START CODE HERE ###
+        if network == "q_network":
+            out = self.q_network(state.flatten(1))
+        elif network == "target_network":
+            out = self.target_network(state.flatten(1))
+        else:
+            raise NotImplementedError
         ### END CODE HERE ###
 
         return out
@@ -107,6 +121,7 @@ class Linear(DQN):
         """
 
         ### START CODE HERE ###
+        self.target_network.load_state_dict(self.q_network.state_dict())
         ### END CODE HERE ###
 
     ############################################################
@@ -118,8 +133,8 @@ class Linear(DQN):
         target_q_values: torch.Tensor,
         actions: torch.Tensor,
         rewards: torch.Tensor,
-        terminated_mask: torch.Tensor, 
-        truncated_mask: torch.Tensor
+        terminated_mask: torch.Tensor,
+        truncated_mask: torch.Tensor,
     ) -> torch.Tensor:
         """
         Calculates the MSE loss of a given step. The loss for an example is defined:
@@ -139,7 +154,7 @@ class Linear(DQN):
 
             rewards: (torch tensor) shape = (batch_size,)
                 The rewards that you actually got at each step (i.e. r)
-            
+
             terminated_mask: (torch tensor) shape = (batch_size,)
                 A boolean mask of examples where we reached the terminal state
 
@@ -164,6 +179,15 @@ class Linear(DQN):
         """
         gamma = self.config["hyper_params"]["gamma"]
         ### START CODE HERE ###
+        q_samp = (
+            rewards
+            + gamma
+            * torch.max(target_q_values, dim=1)[0]
+            * terminated_mask.logical_not()
+            * truncated_mask.logical_not()
+        ).unsqueeze(1)
+        q_sa = q_values.gather(1, actions.long().unsqueeze(1))
+        return torch.mean((q_samp - q_sa) ** 2)
         ### END CODE HERE ###
 
     ############################################################
@@ -182,4 +206,5 @@ class Linear(DQN):
             What are the input to the optimizer's constructor?
         """
         ### START CODE HERE ###
+        self.optimizer = torch.optim.Adam(self.q_network.parameters())
         ### END CODE HERE ###

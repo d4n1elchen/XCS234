@@ -6,6 +6,7 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 import numpy as np
+
 from utils.test_env import EnvTest
 
 ############################################################
@@ -53,6 +54,11 @@ class LinearSchedule(object):
                 self.epsilon value, which is self.eps_end.
         """
         ### START CODE HERE ###
+        self.epsilon = self.eps_begin + (self.eps_end - self.eps_begin) * (
+            t / self.nsteps
+        )
+        if t > self.nsteps:
+            self.epsilon = self.eps_end
         ### END CODE HERE ###
 
 
@@ -91,6 +97,11 @@ class LinearExploration(LinearSchedule):
                 env.action_space.sample() to generate a random action
         """
         ### START CODE HERE ###
+        return (
+            self.env.action_space.sample()
+            if np.random.random() < self.epsilon
+            else best_action
+        )
         ### END CODE HERE ###
 
 

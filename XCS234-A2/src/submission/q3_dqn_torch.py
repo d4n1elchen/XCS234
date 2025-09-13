@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import yaml
 
 from utils.general import get_logger, join
 from utils.test_env import EnvTest
+
 from .q1_schedule import LinearExploration, LinearSchedule
 from .q2_linear_torch import Linear
-
-import yaml
 
 yaml.add_constructor("!join", join)
 
@@ -30,7 +30,7 @@ class NatureQN(Linear):
     # Problem 3a: initialize_models
 
     def initialize_models(self):
-        """Creates the 2 separate networks (Q network and Target network). The in_channels 
+        """Creates the 2 separate networks (Q network and Target network). The in_channels
         to Conv2d networks will n_channels * self.config["hyper_params"]["state_history"]
 
         Args:
@@ -59,6 +59,32 @@ class NatureQN(Linear):
         img_height, img_width, n_channels = state_shape
         num_actions = self.env.action_space.n
         ### START CODE HERE ###
+        num_channels = n_channels * self.config["hyper_params"]["state_history"]
+        self.q_network = nn.Sequential(
+            nn.Conv2d(num_channels, 32, kernel_size=8, stride=4, padding=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(7 * 7 * 64, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_actions),
+        )
+
+        self.target_network = nn.Sequential(
+            nn.Conv2d(num_channels, 32, kernel_size=8, stride=4, padding=2),
+            nn.ReLU(),
+            nn.Conv2d(32, 64, kernel_size=4, stride=2),
+            nn.ReLU(),
+            nn.Conv2d(64, 64, kernel_size=3, stride=1),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(7 * 7 * 64, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_actions),
+        )
         ### END CODE HERE ###
 
     ############################################################
@@ -89,6 +115,12 @@ class NatureQN(Linear):
         out = None
 
         ### START CODE HERE ###
+        if network == "q_network":
+            out = self.q_network(state.permute(0, 3, 1, 2))
+        elif network == "target_network":
+            out = self.target_network(state.permute(0, 3, 1, 2))
+        else:
+            raise NotImplementedError
         ### END CODE HERE ###
 
         return out
