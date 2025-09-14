@@ -98,9 +98,12 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_3c
 \begin{answer}
   % ### START CODE HERE ###
-  The linear model is obviously learn quicker and give you more stable results while DQN can sometimes fail to reach the optimal policy with the epoch we choose. DQN might need even more training steps to reach the optimal policy.
+  The linear model is obviously learn quicker and give you more stable results while DQN can
+  sometimes fail to reach the optimal policy with the epoch we choose. DQN might need even
+  more training steps to reach the optimal policy.
 
-  In conclusion, for the simple test environment, the linear model is the better choice due to its efficiency and appropriate complexity. The DQN is unnecessarily powerful for this task.
+  In conclusion, for the simple test environment, the linear model is the better choice due
+  to its efficiency and appropriate complexity. The DQN is unnecessarily powerful for this task.
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_3c
@@ -113,6 +116,12 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_4a
 \begin{answer}
   % ### START CODE HERE ###
+  \begin{figure}[H]
+  \centering
+    \includegraphics[width=.5\linewidth]{images/q4_linear.png}
+  \end{figure}
+  The performance of the linear model on the Pong-v5 environment is extremely poor and shows
+  no evidence of learning.
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_4a
@@ -125,6 +134,15 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_4c
 \begin{answer}
   % ### START CODE HERE ###
+  The DQN is obviously improving its performance over time while the linear model doesn't seem
+  to improve.
+
+  The DQN has a deep CNN layer that are specifically designed for image data. It gives the DQN
+  the understanding of the game state directly from pixels, which is necessary for high-level
+  strategic play.
+
+  On the other hand, the linear model treat each pixels as an independent feature and attempts
+  to find a simple linear relationship between pixel values and strategy, which is insufficient.
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_4c
@@ -137,6 +155,10 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_4d
 \begin{answer}
   % ### START CODE HERE ###
+  No, the performance of DQN is improving in the long run but it fluctuate a lot locally.
+  It could be the $\epsilon$-greddy exploration where it randomly choose the actions sometimes
+  that causes the fluctuation. Also, the deep neural network is a highly non-linear function
+  approximation. A small parameter change can lead to significant change in the policy.
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_4d
