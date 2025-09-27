@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from utils.network_utils import np2torch
+from utils.network_utils import np2torch, batch_iterator
 from submission.mlp import build_mlp
 
 
@@ -14,7 +14,7 @@ class BaselineNetwork(nn.Module):
         config (dict): A dictionary containing generated from reading a yaml configuration file
 
     TODO:
-        Create self.network using build_mlp, with observations space dimensional input 
+        Create self.network using build_mlp, with observations space dimensional input
         and 1-dimensional output. Create an Adam optimizer and assign it to
         self.optimizer which will be used later to optimize the network parameters.
         You should make use of some values from config, such as the number of layers,
@@ -28,12 +28,18 @@ class BaselineNetwork(nn.Module):
         self.lr = self.config["hyper_params"]["learning_rate"]
         self.device = torch.device("cpu")
         if self.config["model_training"]["device"] == "gpu":
-            if torch.cuda.is_available(): 
+            if torch.cuda.is_available():
                 self.device = torch.device("cuda")
             elif torch.backends.mps.is_available() and torch.backends.mps.is_built():
                 self.device = torch.device("mps")
         print(f"Running Baseline model on device {self.device}")
         ### START CODE HERE ###
+        n_layers = self.config["hyper_params"]["n_layers"]
+        input_size = env.observation_space.shape[0]
+        size = self.config["hyper_params"]["layer_size"]
+
+        self.network = build_mlp(input_size=input_size, output_size=1, n_layers=n_layers, size=size).to(self.device)
+        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=self.lr)
         ### END CODE HERE ###
 
     def forward(self, observations):
@@ -55,6 +61,7 @@ class BaselineNetwork(nn.Module):
             (which will be returned).
         """
         ### START CODE HERE ###
+        output = self.network(observations).squeeze(1)
         ### END CODE HERE ###
         assert output.ndim == 1
         return output
@@ -87,6 +94,7 @@ class BaselineNetwork(nn.Module):
         """
         observations = np2torch(observations, device=self.device)
         ### START CODE HERE ###
+        advantages = returns - self.forward(observations).detach().cpu().numpy()
         ### END CODE HERE ###
         return advantages
 
@@ -106,4 +114,10 @@ class BaselineNetwork(nn.Module):
         returns = np2torch(returns, device=self.device)
         observations = np2torch(observations, device=self.device)
         ### START CODE HERE ###
+        for rts, obs in batch_iterator(returns, observations):
+            baseline = self.forward(obs)
+            mse_loss = torch.mean((baseline - rts) ** 2)
+            self.optimizer.zero_grad()
+            mse_loss.backward()
+            self.optimizer.step()
         ### END CODE HERE ###

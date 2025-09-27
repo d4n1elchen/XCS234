@@ -44,9 +44,7 @@ class PolicyGradient(object):
         # discrete vs continuous action space
         self.discrete = isinstance(env.action_space, gym.spaces.Discrete)
         self.observation_dim = self.env.observation_space.shape[0]
-        self.action_dim = (
-            self.env.action_space.n if self.discrete else self.env.action_space.shape[0]
-        )
+        self.action_dim = self.env.action_space.n if self.discrete else self.env.action_space.shape[0]
 
         self.lr = self.config["hyper_params"]["learning_rate"]
 
@@ -64,12 +62,8 @@ class PolicyGradient(object):
 
         try:
             if self.config["model_training"]["compile"] == True:
-                self.network = torch.compile(
-                    self.network, mode=self.config["model_training"]["compile_mode"]
-                )
-                self.policy = torch.compile(
-                    self.policy, mode=self.config["model_training"]["compile_mode"]
-                )
+                self.network = torch.compile(self.network, mode=self.config["model_training"]["compile_mode"])
+                self.policy = torch.compile(self.policy, mode=self.config["model_training"]["compile_mode"])
                 if config["model_training"]["use_baseline"]:
                     self.baseline_network = torch.compile(
                         self.baseline_network,
@@ -97,6 +91,19 @@ class PolicyGradient(object):
                you can call the parameters() method to get its parameters.
         """
         ### START CODE HERE ###
+        n_layers = self.config["hyper_params"]["n_layers"]
+        size = self.config["hyper_params"]["layer_size"]
+
+        self.network = build_mlp(
+            input_size=self.observation_dim, output_size=self.action_dim, n_layers=n_layers, size=size
+        ).to(self.device)
+
+        if self.discrete:
+            self.policy = CategoricalPolicy(self.network, self.device)
+        else:
+            self.policy = GaussianPolicy(self.network, self.action_dim, self.device)
+
+        self.optimizer = torch.optim.Adam(self.policy.parameters(), lr=self.lr)
         ### END CODE HERE ###
 
     def init_averages(self):
@@ -167,16 +174,10 @@ class PolicyGradient(object):
                 rewards.append(reward)
                 episode_reward += reward
                 t += 1
-                if (
-                    terminated
-                    or truncated
-                    or step == self.config["hyper_params"]["max_ep_len"] - 1
-                ):
+                if terminated or truncated or step == self.config["hyper_params"]["max_ep_len"] - 1:
                     episode_rewards.append(episode_reward)
                     break
-                if (not num_episodes) and t == self.config["hyper_params"][
-                    "batch_size"
-                ]:
+                if (not num_episodes) and t == self.config["hyper_params"]["batch_size"]:
                     break
 
             path = {
@@ -219,6 +220,11 @@ class PolicyGradient(object):
         for path in paths:
             rewards = path["reward"]
             ### START CODE HERE ###
+            T = len(rewards)
+            returns = np.zeros_like(rewards)
+            gamma = self.config["hyper_params"]["gamma"]
+            for t in reversed(range(T)):
+                returns[t] = rewards[t] + (gamma * returns[t + 1] if t + 1 < T else 0)
             ### END CODE HERE ###
             all_returns.append(returns)
         returns = np.concatenate(all_returns)
@@ -243,6 +249,7 @@ class PolicyGradient(object):
         This function is called only if self.config["model_training"]["normalize_advantage"] is True.
         """
         ### START CODE HERE ###
+        normalized_advantages = (advantages - np.mean(advantages)) / np.std(advantages)
         ### END CODE HERE ###
         return normalized_advantages
 
@@ -259,9 +266,7 @@ class PolicyGradient(object):
         """
         if self.config["model_training"]["use_baseline"]:
             # override the behavior of advantage by subtracting baseline
-            advantages = self.baseline_network.calculate_advantage(
-                returns, observations
-            )
+            advantages = self.baseline_network.calculate_advantage(returns, observations)
         else:
             advantages = returns
 
@@ -296,6 +301,11 @@ class PolicyGradient(object):
         actions = np2torch(actions, device=self.device)
         advantages = np2torch(advantages, device=self.device)
         ### START CODE HERE ###
+        log_probs = self.policy.action_distribution(observations).log_prob(actions)
+        loss = -(log_probs * advantages).mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         ### END CODE HERE ###
 
     def train(self):
@@ -306,9 +316,7 @@ class PolicyGradient(object):
         last_record = 0
 
         self.init_averages()
-        all_total_rewards = (
-            []
-        )  # the returns of all episodes samples for training purposes
+        all_total_rewards = []  # the returns of all episodes samples for training purposes
         averaged_total_rewards = []  # the returns for each iteration
 
         # set policy to device
@@ -341,17 +349,13 @@ class PolicyGradient(object):
             # compute reward statistics for this batch and log
             avg_reward = np.mean(total_rewards)
             sigma_reward = np.sqrt(np.var(total_rewards) / len(total_rewards))
-            msg = "Average reward: {:04.2f} +/- {:04.2f}".format(
-                avg_reward, sigma_reward
-            )
+            msg = "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
             averaged_total_rewards.append(avg_reward)
             self.logger.info(msg)
 
             last_record += 1
 
-            if self.config["env"]["record"] and (
-                last_record > self.config["model_training"]["record_freq"]
-            ):
+            if self.config["env"]["record"] and (last_record > self.config["model_training"]["record_freq"]):
                 self.logger.info("Recording...")
                 last_record = 0
                 self.record(t)
@@ -369,21 +373,13 @@ class PolicyGradient(object):
                 self.policy.state_dict(),
                 "submission/{}-{}-model-weights.pt".format(
                     self.config["env"]["env_name"],
-                    (
-                        "baseline"
-                        if self.config["model_training"]["use_baseline"]
-                        else "no-baseline"
-                    ),
+                    ("baseline" if self.config["model_training"]["use_baseline"] else "no-baseline"),
                 ),
             )
             np.save(
                 "submission/{}-{}-scores.npy".format(
                     self.config["env"]["env_name"],
-                    (
-                        "baseline"
-                        if self.config["model_training"]["use_baseline"]
-                        else "no-baseline"
-                    ),
+                    ("baseline" if self.config["model_training"]["use_baseline"] else "no-baseline"),
                 ),
                 averaged_total_rewards,
             )
@@ -415,9 +411,7 @@ class PolicyGradient(object):
         avg_reward = np.mean(rewards)
         sigma_reward = np.sqrt(np.var(rewards) / len(rewards))
         if logging:
-            msg = "Average reward: {:04.2f} +/- {:04.2f}".format(
-                avg_reward, sigma_reward
-            )
+            msg = "Average reward: {:04.2f} +/- {:04.2f}".format(avg_reward, sigma_reward)
             self.logger.info(msg)
         return avg_reward
 
