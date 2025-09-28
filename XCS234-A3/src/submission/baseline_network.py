@@ -61,7 +61,7 @@ class BaselineNetwork(nn.Module):
             (which will be returned).
         """
         ### START CODE HERE ###
-        output = self.network(observations).squeeze(1)
+        output = self.network(observations).squeeze()
         ### END CODE HERE ###
         assert output.ndim == 1
         return output
@@ -114,10 +114,9 @@ class BaselineNetwork(nn.Module):
         returns = np2torch(returns, device=self.device)
         observations = np2torch(observations, device=self.device)
         ### START CODE HERE ###
-        for rts, obs in batch_iterator(returns, observations):
-            baseline = self.forward(obs)
-            mse_loss = torch.mean((baseline - rts) ** 2)
-            self.optimizer.zero_grad()
-            mse_loss.backward()
-            self.optimizer.step()
+        baseline = self.forward(observations)
+        mse_loss = torch.mean((baseline - returns) ** 2)
+        self.optimizer.zero_grad()
+        mse_loss.backward()
+        self.optimizer.step()
         ### END CODE HERE ###

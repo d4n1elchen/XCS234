@@ -221,10 +221,11 @@ class PolicyGradient(object):
             rewards = path["reward"]
             ### START CODE HERE ###
             T = len(rewards)
-            returns = np.zeros_like(rewards)
             gamma = self.config["hyper_params"]["gamma"]
-            for t in reversed(range(T)):
-                returns[t] = rewards[t] + (gamma * returns[t + 1] if t + 1 < T else 0)
+            returns = np.zeros_like(rewards)
+            returns[-1] = rewards[-1]
+            for t in reversed(range(T-1)):
+                returns[t] = rewards[t] + gamma * returns[t + 1]
             ### END CODE HERE ###
             all_returns.append(returns)
         returns = np.concatenate(all_returns)

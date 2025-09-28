@@ -160,7 +160,7 @@ class GaussianPolicy(BasePolicy, nn.Module):
         """
         ### START CODE HERE ###
         mean = self.network(observations)
-        std = self.std()
-        distribution = ptd.MultivariateNormal(loc=mean, scale_tril=torch.diag_embed(std.expand_as(mean)))
+        cov = torch.diag(self.std() ** 2)
+        distribution = ptd.MultivariateNormal(mean, cov)
         ### END CODE HERE ###
         return distribution
