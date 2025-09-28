@@ -115,7 +115,7 @@ class BaselineNetwork(nn.Module):
         observations = np2torch(observations, device=self.device)
         ### START CODE HERE ###
         baseline = self.forward(observations)
-        mse_loss = torch.mean((baseline - returns) ** 2)
+        mse_loss = torch.nn.functional.mse_loss(baseline, returns)
         self.optimizer.zero_grad()
         mse_loss.backward()
         self.optimizer.step()

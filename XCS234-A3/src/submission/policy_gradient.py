@@ -220,11 +220,10 @@ class PolicyGradient(object):
         for path in paths:
             rewards = path["reward"]
             ### START CODE HERE ###
-            T = len(rewards)
             gamma = self.config["hyper_params"]["gamma"]
-            returns = np.zeros_like(rewards)
+            returns = np.zeros_like(rewards, dtype=np.float32)
             returns[-1] = rewards[-1]
-            for t in reversed(range(T-1)):
+            for t in reversed(range(len(rewards) - 1)):
                 returns[t] = rewards[t] + gamma * returns[t + 1]
             ### END CODE HERE ###
             all_returns.append(returns)
