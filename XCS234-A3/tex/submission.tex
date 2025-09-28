@@ -34,6 +34,17 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_2a
 \begin{answer}
   % ### START CODE HERE ###
+  The probability of a specific trajectory is the product of the probabilities of the agent choosing an action based on its policy and the environment transitioning to the next state based on that action.
+
+  $$
+  \rho^{\pi}(\tau) = p(s_0) \prod_{t=0}^{\infty} \pi(a_t|s_t) \mathcal{P}(s_{t+1}|s_t, a_t)
+  $$
+
+  Because we assume that the MDP has a single, fixed starting state $s_0$, i.e. $p(s_0) = 1$. Therefore,
+
+  $$
+  \rho^{\pi}(\tau) = \prod_{t=0}^{\infty} \pi(a_t|s_t) \mathcal{P}(s_{t+1}|s_t, a_t)
+  $$
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_2a
@@ -46,6 +57,37 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_2b
 \begin{answer}
   % ### START CODE HERE ###
+  Firstly, apply the linearity of expectation and then expand the expectation.
+
+  \begin{align*}
+  \mathbb{E}_{\tau\sim\rho^{\pi}}\left[\sum_{t=0}^{\infty}\gamma^{t}f(s_{t},a_{t})\right] &= \sum_{t=0}^{\infty}\gamma^{t}\mathbb{E}_{\tau\sim\rho^{\pi}}[f(s_{t},a_{t})] \\
+    &= \sum_{t=0}^{\infty}\gamma^{t}\sum_{s \in \mathcal{S}} \sum_{a \in \mathcal{A}} p(s_t=s, a_t=a) f(s,a) \\
+    &= \sum_{t=0}^{\infty}\gamma^{t}\sum_{s \in \mathcal{S}} \sum_{a \in \mathcal{A}} p(s_t=s) p(a_t=a | s_t=s) f(s,a) \\
+    &= \sum_{t=0}^{\infty}\gamma^{t}\sum_{s \in \mathcal{S}} \sum_{a \in \mathcal{A}} p(s_t=s) \pi(a|s) f(s,a) \\
+    &= \sum_{s \in \mathcal{S}} \sum_{a \in \mathcal{A}} \pi(a|s) f(s,a) \left(\sum_{t=0}^{\infty}\gamma^{t} p(s_t=s)\right)
+  \end{align*}
+
+  We have the definition of the discounted, stationary state distribution
+
+  $$
+  d^{\pi}(s) = (1-\gamma)\sum_{t=0}^{\infty}\gamma^{t}p(s_{t}=s)
+  $$
+
+
+  Rearrange the equation we can get solve $\sum_{t=0}^{\infty}\gamma^{t} p(s_t=s)$
+
+  $$
+  \sum_{t=0}^{\infty}\gamma^{t}p(s_t=s) = \frac{d^{\pi}(s)}{1-\gamma}
+  $$
+
+  Substitute back and we get
+
+  \begin{align*}
+  \mathbb{E}_{\tau\sim\rho^{\pi}}\left[\sum_{t=0}^{\infty}\gamma^{t}f(s_{t},a_{t})\right] &= \sum_{s \in \mathcal{S}} \sum_{a \in \mathcal{A}} \pi(a|s) f(s,a) \left(\frac{d^{\pi}(s)}{1-\gamma}\right) \\
+    &= \frac{1}{1-\gamma} \sum_{s \in \mathcal{S}} d^{\pi}(s) \left(\sum_{a \in \mathcal{A}} \pi(a|s) f(s,a)\right) \\
+    &= \frac{1}{1-\gamma}\mathbb{E}_{s\sim d^{\pi}}[\mathbb{E}_{a\sim\pi(s)}[f(s,a)]]
+  \end{align*}
+
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_2b
@@ -62,6 +104,9 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
       &= \mathbb{E}_{\tau \sim \rho^\pi}\left[\sum\limits_{t=0}^\infty \gamma^t\left( \mathcal{R}(s_t,a_t) + V^{\pi'}(s_t) - V^{\pi'}(s_t)\right)\right] - V^{\pi'}(s_0) \\
       &= \mathbb{E}_{\tau \sim \rho^\pi}\left[\sum\limits_{t=0}^\infty \gamma^t\left( \mathcal{R}(s_t,a_t) + \gamma V^{\pi'}(s_{t+1}) - V^{\pi'}(s_t)\right)\right] \\
   % ### START CODE HERE ###
+  &= \mathbb{E}_{\tau \sim \rho^\pi}\left[\sum\limits_{t=0}^\infty \gamma^t\left( Q^{\pi'}(s_t,a_t) - V^{\pi'}(s_t)\right)\right] && \text{Definition of $Q^{\pi'}(s_t,a_t)$} \\
+  &= \mathbb{E}_{\tau \sim \rho^\pi}\left[\sum\limits_{t=0}^\infty \gamma^t A^{\pi'}(s_t,a_t)\right] && \text{Definition of $A^{\pi'}(s_t,a_t)$} \\
+  &= \frac{1}{(1-\gamma)}\mathbb{E}_{s\sim d^{\pi}}[\mathbb{E}_{a\sim\pi(s)}[A^{\pi^{\prime}}(s,a)]] && \text{From 2.b}
   % ### END CODE HERE ###
   \end{align*}
   \end{answer}
@@ -75,6 +120,14 @@ instructions to regenerate this handout with your typeset \LaTeX{} solutions.
 % <SCPD_SUBMISSION_TAG>_3a
 \begin{answer}
   % ### START CODE HERE ###
+  1. To follow *Respect for persons*, the researcher must properly
+  inform the students about the study's purpose, the method they
+  will implement including the use of AI chatbot and random assignment
+  and any other possible risk with the student's consent.
+
+  2. To minimize possible harms (as stated in *Beneficence*), the researcher
+  should ensure that the students can withdraw from the study at any time
+  without penalty if they feel the chatbot is ineffective.
   % ### END CODE HERE ###
 \end{answer}
 % <SCPD_SUBMISSION_TAG>_3a
