@@ -124,9 +124,7 @@ class RewardModel(nn.Module):
         ### START CODE HERE ###
         obs_torch = np2torch(obs).unsqueeze(0)
         action_torch = np2torch(action).unsqueeze(0)
-        with torch.no_grad():
-            reward = self.forward(obs_torch, action_torch).squeeze().item()
-        return reward
+        return self.forward(obs_torch, action_torch).squeeze().item()
         ### END CODE HERE ###
         #######################################################
 
@@ -155,9 +153,7 @@ class RewardModel(nn.Module):
         r1 = torch.sum(self.forward(obs1, act1), dim=1)
         r2 = torch.sum(self.forward(obs2, act2), dim=1)
 
-        p1 = torch.sigmoid(r1 - r2)
-
-        input = torch.stack([p1, 1 - p1], dim=1)
+        input = torch.stack([r1, r2], dim=1)
         target = torch.stack([1 - label, label], dim=1)
         loss = nn.functional.cross_entropy(input, target, reduction="sum")
         ### END CODE HERE ###

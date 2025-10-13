@@ -168,8 +168,7 @@ class ActionSequenceModel(nn.Module):
         #########   2-6 lines.    ############
         ### START CODE HERE ###
         obs_torch = np2torch(obs[None])
-        with torch.no_grad():
-            action_seq = self.distribution(obs_torch).sample()
+        action_seq = self.distribution(obs_torch).sample()
         action = action_seq.cpu().numpy()[0, 0]
         return np.clip(action, -1.0, 1.0)
         ### END CODE HERE ###
@@ -259,9 +258,9 @@ class DPO(ActionSequenceModel):
             ref_logp_w = ref_policy.distribution(obs).log_prob(actions_w)
             ref_logp_l = ref_policy.distribution(obs).log_prob(actions_l)
 
-        pi_logratios = logp_w - logp_l
-        ref_logratios = ref_logp_w - ref_logp_l
-        logits = pi_logratios - ref_logratios
+        logratio_w = logp_w - ref_logp_w
+        logratio_l = logp_l - ref_logp_l
+        logits = logratio_w - logratio_l
         loss = -torch.nn.functional.logsigmoid(self.beta * logits).mean()
 
         self.optimizer.zero_grad()
