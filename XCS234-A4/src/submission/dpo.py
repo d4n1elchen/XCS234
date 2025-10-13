@@ -55,6 +55,13 @@ class ActionSequenceModel(nn.Module):
         #######################################################
         ######### 3-9 lines. ############
         ### START CODE HERE ###
+        output_dim = 2 * self.segment_len * self.action_dim
+        self.net = nn.Sequential(
+            nn.Linear(self.obs_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, output_dim),
+        )
+        self.optimizer = torch.optim.AdamW(self.net.parameters(), lr=lr)
         ### END CODE HERE ###
         #######################################################
 
@@ -96,6 +103,15 @@ class ActionSequenceModel(nn.Module):
         #######################################################
         ######### 3-9 lines. ############
         ### START CODE HERE ###
+        mean_flat, log_std_flat = torch.split(
+            net_out, self.segment_len * self.action_dim, dim=1
+        )
+        mean = torch.tanh(mean_flat).view(
+            batch_size, self.segment_len, self.action_dim
+        )
+        log_std = log_std_flat.view(batch_size, self.segment_len, self.action_dim)
+        log_std = torch.clamp(log_std, LOGSTD_MIN, LOGSTD_MAX)
+        std = torch.exp(log_std)
         ### END CODE HERE ###
         #######################################################
         return mean, std
@@ -125,6 +141,8 @@ class ActionSequenceModel(nn.Module):
         #######################################################
         #########   1-5 lines.    ############
         ### START CODE HERE ###
+        mean, std = self.forward(obs)
+        return D.Independent(D.Normal(mean, std), 2)
         ### END CODE HERE ###
         #######################################################
 
@@ -149,6 +167,11 @@ class ActionSequenceModel(nn.Module):
         #######################################################
         #########   2-6 lines.    ############
         ### START CODE HERE ###
+        obs_torch = np2torch(obs[None])
+        with torch.no_grad():
+            action_seq = self.distribution(obs_torch).sample()
+        action = action_seq.cpu().numpy()[0, 0]
+        return np.clip(action, -1.0, 1.0)
         ### END CODE HERE ###
         #######################################################
 
@@ -174,6 +197,12 @@ class SFT(ActionSequenceModel):
         #######################################################
         #########   4-6 lines.    ############
         ### START CODE HERE ###
+        dist = self.distribution(obs)
+        log_probs = dist.log_prob(actions)
+        loss = -log_probs.mean()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         ### END CODE HERE ###
         #######################################################
         return loss.item()
@@ -223,6 +252,21 @@ class DPO(ActionSequenceModel):
         #######################################################
         #########   8-14 lines.   ############
         ### START CODE HERE ###
+        logp_w = self.distribution(obs).log_prob(actions_w)
+        logp_l = self.distribution(obs).log_prob(actions_l)
+
+        with torch.no_grad():
+            ref_logp_w = ref_policy.distribution(obs).log_prob(actions_w)
+            ref_logp_l = ref_policy.distribution(obs).log_prob(actions_l)
+
+        pi_logratios = logp_w - logp_l
+        ref_logratios = ref_logp_w - ref_logp_l
+        logits = pi_logratios - ref_logratios
+        loss = -torch.nn.functional.logsigmoid(self.beta * logits).mean()
+
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
         ### END CODE HERE ###
         #######################################################
         return loss.item()
