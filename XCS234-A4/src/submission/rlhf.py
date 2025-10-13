@@ -152,14 +152,14 @@ class RewardModel(nn.Module):
         #######################################################
         #########   5-10 lines.   ############
         ### START CODE HERE ###
-        r1 = self.forward(obs1, act1)
-        r2 = self.forward(obs2, act2)
+        r1 = torch.sum(self.forward(obs1, act1), dim=1)
+        r2 = torch.sum(self.forward(obs2, act2), dim=1)
 
-        cum_r1 = torch.sum(r1, dim=1)
-        cum_r2 = torch.sum(r2, dim=1)
+        p1 = torch.sigmoid(r1 - r2)
 
-        logits = torch.stack([cum_r1, cum_r2], dim=1)
-        loss = nn.functional.cross_entropy(logits, label.long())
+        input = torch.stack([p1, 1 - p1], dim=1)
+        target = torch.stack([1 - label, label], dim=1)
+        loss = nn.functional.cross_entropy(input, target, reduction="sum")
         ### END CODE HERE ###
         #######################################################
 
