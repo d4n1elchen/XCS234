@@ -41,6 +41,13 @@ class RewardModel(nn.Module):
         #######################################################
         #########   2-10 lines.   ############
         ### START CODE HERE ###
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim + action_dim, hidden_dim),
+            nn.LeakyReLU(),
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid(),
+        )
+        self.optimizer = torch.optim.AdamW(self.parameters())
         ### END CODE HERE ###
         #######################################################
         self.r_min = r_min
@@ -80,6 +87,9 @@ class RewardModel(nn.Module):
         #######################################################
         #########   2-3 lines.   ############
         ### START CODE HERE ###
+        x = torch.cat([obs, action], dim=-1)
+        unscaled_rewards = self.net(x).squeeze(-1)
+        rewards = self.r_min + (self.r_max - self.r_min) * unscaled_rewards
         ### END CODE HERE ###
         #######################################################
 
@@ -112,6 +122,11 @@ class RewardModel(nn.Module):
         #######################################################
         #########   1-4 lines.   ############
         ### START CODE HERE ###
+        obs_torch = np2torch(obs).unsqueeze(0)
+        action_torch = np2torch(action).unsqueeze(0)
+        with torch.no_grad():
+            reward = self.forward(obs_torch, action_torch).squeeze().item()
+        return reward
         ### END CODE HERE ###
         #######################################################
 
@@ -137,6 +152,14 @@ class RewardModel(nn.Module):
         #######################################################
         #########   5-10 lines.   ############
         ### START CODE HERE ###
+        r1 = self.forward(obs1, act1)
+        r2 = self.forward(obs2, act2)
+
+        cum_r1 = torch.sum(r1, dim=1)
+        cum_r2 = torch.sum(r2, dim=1)
+
+        logits = torch.stack([cum_r1, cum_r2], dim=1)
+        loss = nn.functional.cross_entropy(logits, label.long())
         ### END CODE HERE ###
         #######################################################
 
