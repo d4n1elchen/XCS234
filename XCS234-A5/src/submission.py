@@ -271,7 +271,7 @@ class eGreedyLinB(LinUCB):
         ### START CODE HERE ###
         A_inv = np.linalg.inv(self.A)
         theta = A_inv @ self.b
-        payoffs = np.dot(np.squeeze(theta),  xvec)
+        payoffs = np.dot(theta.squeeze(),  xvec)
 
         # Epsilon-greedy action selection
         if np.random.uniform() < epsilon:
@@ -326,8 +326,8 @@ class ThomSampB(BanditPolicy):
         self.d = len(features)
         self.v2 = alpha
         self.B = np.tile(np.identity(self.d), (num_arms, 1, 1))
-        self.mu = np.zeros((num_arms, self.d, 1))
-        self.f = np.zeros((num_arms, self.d, 1))
+        self.mu = np.zeros((num_arms, self.d))
+        self.f = np.zeros((num_arms, self.d))
         ### END CODE HERE ###
 
     def extract_features(self, x):
@@ -389,7 +389,7 @@ class ThomSampB(BanditPolicy):
         ### START CODE HERE ###
         b_a_t = xvec.reshape(-1, 1)
         self.B[a] += b_a_t @ b_a_t.T
-        self.f[a] += r * b_a_t
+        self.f[a] += r * b_a_t.flatten()
         self.mu[a] = np.linalg.inv(self.B[a]) @ self.f[a]
         ### END CODE HERE ###
 
@@ -413,6 +413,9 @@ class DynamicLinUCB(LinUCB):
         #######################################################
         #########  ~2 lines.   #############
         ### START CODE HERE ###
+        self.A = np.vstack([self.A, [np.identity(self.d)]])
+        self.b = np.vstack([self.b, [np.zeros((self.d, 1))]])
+        self.num_arms += 1
         ### END CODE HERE ###
 
 
@@ -526,6 +529,16 @@ class Simulator:
             #######################################################
             #########  ~8 lines.   #############
             ### START CODE HERE ###
+            chosen_arms = [log[1] for log in self.logs]
+            if len(set(chosen_arms)) < 2:
+                return False
+            most_common_arms = [item[0] for item in Counter(chosen_arms).most_common(2)]
+            arm1_theta = self.arms[most_common_arms[0]]
+            arm2_theta = self.arms[most_common_arms[1]]
+            new_theta = (arm1_theta + arm2_theta) / 2.0
+            new_arm_id = self.num_arms
+            self.arms[new_arm_id] = new_theta
+            self.num_arms += 1
             ### END CODE HERE ###
             #######################################################
         if self.update_arms_strategy == "corrective":
@@ -542,6 +555,18 @@ class Simulator:
             #######################################################
             #########  ~7 lines.   #############
             ### START CODE HERE ###
+            incorrect_predictions = [log for log in self.logs if log[1] != log[2]]
+            if not incorrect_predictions:
+                return False
+            best_arm_counts = Counter([log[2] for log in incorrect_predictions])
+            new_theta = np.zeros(self.num_features)
+            total_incorrect = len(incorrect_predictions)
+            for arm_id, count in best_arm_counts.items():
+                new_theta += count * self.arms[arm_id]
+            new_theta /= total_incorrect
+            new_arm_id = self.num_arms
+            self.arms[new_arm_id] = new_theta
+            self.num_arms += 1
             ### END CODE HERE ###
             #######################################################
         if self.update_arms_strategy == "counterfactual":
@@ -559,6 +584,18 @@ class Simulator:
             #######################################################
             #########  ~9 lines.   #############
             ### START CODE HERE ###
+            eta = 0.1
+            new_theta = np.zeros(self.num_features)
+            gradient = np.zeros(self.num_features)
+            for log in self.logs:
+                user_id, chosen_arm_id, _ = log
+                user_context = self.users[user_id]
+                chosen_arm_theta = self.arms[chosen_arm_id]
+                gradient += (new_theta.T @ user_context - chosen_arm_theta.T @ user_context) * user_context
+            new_theta += eta * gradient
+            new_arm_id = self.num_arms
+            self.arms[new_arm_id] = new_theta
+            self.num_arms += 1
             ### END CODE HERE ###
             #######################################################
 
