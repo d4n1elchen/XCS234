@@ -60,6 +60,7 @@ class FixedDosePolicy(StaticPolicy):
                   to all patients.
         """
         ### START CODE HERE ###
+        return 1
         ### END CODE HERE ###
 
 
@@ -89,6 +90,25 @@ class ClinicalDosingPolicy(StaticPolicy):
         age_in_decades = x["Age in decades"]
 
         ### START CODE HERE ###
+        height_in_cm = x["Height (cm)"]
+        weight_in_kg = x["Weight (kg)"]
+        asian_race = x["Asian"]
+        black_or_african_american_race = x["Black"]
+        missing_or_mixed_race = x["Unknown race"]
+        enzyme_inducer_status = x["Carbamazepine (Tegretol)"] + x["Phenytoin (Dilantin)"] + x["Rifampin or Rifampicin"]
+        amiodarone_status = x["Amiodarone (Cordarone)"]
+
+        weekly_dose_sqrt = (
+            4.0376
+            - 0.2546 * age_in_decades
+            + 0.0118 * height_in_cm
+            + 0.0134 * weight_in_kg
+            - 0.6752 * asian_race
+            + 0.4060 * black_or_african_american_race
+            + 0.0443 * missing_or_mixed_race
+            + 1.2799 * enzyme_inducer_status
+            - 0.5695 * amiodarone_status
+        )
         ### END CODE HERE ###
 
         return weekly_dose_sqrt
@@ -110,6 +130,8 @@ class ClinicalDosingPolicy(StaticPolicy):
 
         weekly_dose_sqrt = self.extract_features(x)
         ### START CODE HERE ###
+        weekly_dose = weekly_dose_sqrt ** 2
+        return dose_class(weekly_dose)
         ### END CODE HERE ###
 
 
@@ -142,6 +164,12 @@ class LinUCB(BanditPolicy):
                 Keep track of a seperate A, b for each action (this is what the Disjoint in the algorithm name means)
         """
         ### START CODE HERE ###
+        self.features = features
+        self.d = len(features)
+        self.alpha = alpha
+        self.A = np.tile(np.identity(self.d), (num_arms, 1, 1))
+        self.b = np.zeros((num_arms, self.d, 1))
+        self.num_arms = num_arms
         ### END CODE HERE ###
 
     def extract_features(self, x):
@@ -178,6 +206,12 @@ class LinUCB(BanditPolicy):
 
         #########   ~5 lines.   #############
         ### START CODE HERE ###
+        A_inv = np.linalg.inv(self.A)
+        theta = A_inv @ self.b
+        x_t_a = xvec.reshape(-1, 1)
+        p_t_a = (theta.transpose(0, 2, 1) @ x_t_a) + self.alpha * np.sqrt(x_t_a.T @ A_inv @ x_t_a)
+        chosen_arm = np.argmax(p_t_a)
+        return chosen_arm
         ### END CODE HERE ###
         #######################################################
 
@@ -201,6 +235,9 @@ class LinUCB(BanditPolicy):
             xvec = self.extract_features(x)
 
         ### START CODE HERE ###
+        x_t_a = xvec.reshape(-1, 1)
+        self.A[a] += x_t_a @ x_t_a.T
+        self.b[a] += r * x_t_a
         ### END CODE HERE ###
 
 
@@ -232,6 +269,17 @@ class eGreedyLinB(LinUCB):
         xvec = self.extract_features(x)
 
         ### START CODE HERE ###
+        A_inv = np.linalg.inv(self.A)
+        theta = A_inv @ self.b
+        payoffs = np.dot(np.squeeze(theta),  xvec)
+
+        # Epsilon-greedy action selection
+        if np.random.uniform() < epsilon:
+            chosen_action = np.random.randint(self.num_arms)
+        else:
+            chosen_action = np.argmax(payoffs)
+
+        return chosen_action
         ### END CODE HERE ###
 
 
@@ -273,6 +321,13 @@ class ThomSampB(BanditPolicy):
 
         """
         ### START CODE HERE ###
+        self.features = features
+        self.num_arms = num_arms
+        self.d = len(features)
+        self.v2 = alpha
+        self.B = np.tile(np.identity(self.d), (num_arms, 1, 1))
+        self.mu = np.zeros((num_arms, self.d, 1))
+        self.f = np.zeros((num_arms, self.d, 1))
         ### END CODE HERE ###
 
     def extract_features(self, x):
@@ -304,6 +359,12 @@ class ThomSampB(BanditPolicy):
         xvec = self.extract_features(x)
 
         ### START CODE HERE ###
+        B_inv = np.linalg.inv(self.B)
+        mu_tilde = np.array([np.random.multivariate_normal(self.mu[t].flatten(), self.v2 * B_inv[t]).reshape(-1, 1) for t in range(self.num_arms)])
+        b_i_t = xvec.reshape(-1, 1)
+        p_t_a = (b_i_t.T @ mu_tilde)
+        chosen_arm = np.argmax(p_t_a)
+        return chosen_arm
         ### END CODE HERE ###
 
     def update(self, x, a, r):
@@ -326,6 +387,10 @@ class ThomSampB(BanditPolicy):
         xvec = self.extract_features(x)
 
         ### START CODE HERE ###
+        b_a_t = xvec.reshape(-1, 1)
+        self.B[a] += b_a_t @ b_a_t.T
+        self.f[a] += r * b_a_t
+        self.mu[a] = np.linalg.inv(self.B[a]) @ self.f[a]
         ### END CODE HERE ###
 
 
